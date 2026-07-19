@@ -1,0 +1,11 @@
+{
+  "name": "post-processing-engine-remotion",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Remotion project for Post-Processing Engine (Editor) - composition + rendering. See ../../../AI_Studio_PRD.md Section 5.",
+  "scripts": {
+    "render": "remotion render"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}

@@ -1,0 +1,25 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Env
+.env
+.env.*
+
+# Node / Remotion
+node_modules/
+dist/
+out/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local tooling config (per-developer, not shared)
+.claude/

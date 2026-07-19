@@ -1,0 +1,20 @@
+[project]
+name = "post-processing-engine"
+version = "0.0.1"
+description = "AI Studio - Post-Processing Engine (Editor). Long-running compute (Render-style), LangGraph stateful loop. See ../../AI_Studio_PRD.md Section 5."
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi==0.115.6",
+    "pydantic==2.10.4",
+    "ai-studio-schemas",
+]
+
+[tool.uv.sources]
+ai-studio-schemas = { workspace = true }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/post_processing_engine"]
