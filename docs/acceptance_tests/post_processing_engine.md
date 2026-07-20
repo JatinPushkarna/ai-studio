@@ -8,12 +8,16 @@ Draft only. Traces to `AI_Studio_PRD.md` Section 5 unless noted. **Not committed
 
 - GIVEN an Editor request, WHEN the request schema is inspected, THEN there is no root-level `script` field — script content is only reachable via `video_analyzer_output.beats[].script_text`.
 
-## 2. `video_type` determines placement strategy
+## 2. `video_type` determines placement strategy (mechanical metadata check)
 
 **Traces to:** PRD §5 Inputs note on `video_type`; `description_chain.md` Pipeline Flow step 5
 
-- GIVEN `video_type: split_screen`, WHEN interpretation/generation run, THEN generated overlays/B-roll target the dedicated empty space.
-- GIVEN `video_type: talking_head`, WHEN interpretation/generation run, THEN generated overlays/B-roll compose on top of the single existing footage layer.
+**Test level:** Structural check against the assembled Remotion composition manifest (output of the `assembly` step), not a rendered-frame or visual-correctness check. Confirming the manifest *declares* the correct placement target is in scope; confirming the rendered result actually *looks* correct is not — that stays manual review, per CLAUDE.md's "no automated Editor quality eval" boundary. Exact manifest field names below are illustrative — the Composite/manifest schema isn't built yet (`shared/schemas` is still a stub) — but the test's intent (structural placement metadata, not visual QA) is fixed now.
+
+- GIVEN `video_type: split_screen`, WHEN the `assembly` step composes the manifest, THEN each generated B-roll/overlay component for a beat is assigned to the manifest's designated fill region (e.g. a distinct `region`/`slot` identifier reserved for generated content), separate from the footage track.
+- GIVEN `video_type: talking_head`, WHEN the `assembly` step composes the manifest, THEN each generated component is assigned a layer/z-index that composites on top of the single footage track, with no separate fill region referenced.
+
+**Explicitly out of scope for this test — manual review required instead:** whether the rendered composite actually looks correct (visual alignment, no overlap/clipping, thematic appropriateness of B-roll, legibility, aesthetic quality). Same manual-review boundary as all other Editor visual output.
 
 ## 3. Six-step pipeline order + progress reporting
 
