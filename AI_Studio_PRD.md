@@ -1,6 +1,6 @@
 # AI Studio — Product Requirements Document
 
-**Author:** Jatin | **Status:** Phase 1 (Theory + PRD) — Week 4, Day 4 | **Target build window:** ~4 weeks (Weeks 5–6+ of AI PM learning plan)
+**Author:** [Owner] | **Status:** Phase 1 (Theory + PRD) — in progress | **Target build window:** ~4 weeks
 
 **Tagline:** From idea to publish-ready content in minutes.
 
@@ -18,11 +18,11 @@ Writer/Editor are shown to end users in-product. Script Engine / Post-Processing
 
 ## 1. Problem Statement
 
-Solo content creators who want to build a consistent presence face a structural bottleneck in manual video editing. In my own experience editing short-form reels in CapCut, a single 60-second video routinely took 2–3 hours — not because of a fixed checklist of tasks, but because editing invites a rabbit hole: each micro-decision (which caption style, which sound effect, whether a cut feels right) reopens the question of whether the last one was good enough, with no natural stopping point without real discipline. Even skilled editors report finishing in 30 minutes to 2 hours — a bar I've never hit. Adding B-roll or motion graphics is effectively out of reach without real editing skill, and hiring a professional editor is financially unrealistic for a solo creator.
+Solo content creators who want to build a consistent presence face a structural bottleneck in manual video editing. In practice, editing short-form reels in CapCut routinely takes 2–3 hours for a single 60-second video — not because of a fixed checklist of tasks, but because editing invites a rabbit hole: each micro-decision (which caption style, which sound effect, whether a cut feels right) reopens the question of whether the last one was good enough, with no natural stopping point without real discipline. Even skilled editors report finishing in 30 minutes to 2 hours — a bar not yet hit here. Adding B-roll or motion graphics is effectively out of reach without real editing skill, and hiring a professional editor is financially unrealistic for a solo creator.
 
 The result is a cycle of procrastination and decision fatigue: without a repeatable, structured process, every video becomes a fresh, effortful, open-ended decision space — which slows output and directly conflicts with the consistency that platform algorithms reward.
 
-Beyond the time cost, there's a second, separate gap: knowing *how* to write a script that actually retains viewers. Even as someone comfortable using AI tools directly, I've never been able to reliably produce a high-retention script — ChatGPT or Claude, prompted generically, produces a script, not necessarily a good one. This requires knowledge of retention-driving structure (hook placement, pacing, pattern interrupts, CTA clarity) that most creators, AI-fluent or not, don't have — and generic AI prompting doesn't supply on its own. This is a general communication/clarity gap as much as a script-craft gap — the same gap Toastmasters exists to address — not specific to any single audience.
+Beyond the time cost, there's a second, separate gap: knowing *how* to write a script that actually retains viewers. Even creators comfortable using AI tools directly haven't been able to reliably produce a high-retention script — ChatGPT or Claude, prompted generically, produces a script, not necessarily a good one. This requires knowledge of retention-driving structure (hook placement, pacing, pattern interrupts, CTA clarity) that most creators, AI-fluent or not, don't have — and generic AI prompting doesn't supply on its own. This is a general communication/clarity gap as much as a script-craft gap — the same gap Toastmasters exists to address — not specific to any single audience.
 
 AI Studio removes both bottlenecks by automating the two most time- and skill-intensive stages of content production — scripting (with a proven, hook-first structure) and post-production (graphics, B-roll, sound design) — so a solo creator can go from raw idea to publish-ready video without editing software, an editor, or the open-ended decision-making that manual editing invites.
 
@@ -32,7 +32,7 @@ AI Studio removes both bottlenecks by automating the two most time- and skill-in
 
 ### The Time-Constrained Solo Creator
 
-Primary v1 user: a solo content creator (the case study for this PRD is myself) with a full-time job, aspiring to build an audience through consistent short-form video (30–60 second Reels). Four core constraints define this persona:
+Primary v1 user: a solo content creator (the case study for this PRD is the author, used as a concrete v1 user) with a full-time job, aspiring to build an audience through consistent short-form video (30–60 second Reels). Four core constraints define this persona:
 
 - **Script-craft novice, despite AI fluency.** Comfortable using AI tools directly, but lacks knowledge of retention-driving script structure (hook placement, pacing, pattern interrupts) — prompting an LLM generically doesn't close this gap.
 - **Structural time scarcity.** Wants daily *publishing* cadence to satisfy platform consistency demands, but a full-time job leaves no room for daily *production* — the 2–4 hours a single reel's post-production currently costs simply don't fit around a full-time job on a daily basis. This is a hard calendar constraint, not a discipline problem.
@@ -45,7 +45,7 @@ Primary v1 user: a solo content creator (the case study for this PRD is myself) 
 
 **Success Looks Like:** Sunday, 8:00–10:00am: generate scripts via Writer for the week's content. 10:00–11:00am: shoot footage against all scripts. Hand off to Editor. By 12:00pm: multiple fully composited, publish-ready videos requiring no further editing — postable throughout the week without manual touch-up.
 
-**Note on Broader Applicability:** While this PRD's v1 build and persona are anchored to a single concrete user (myself) for scope discipline and specificity, the underlying capability is not niche-bound — Writer's structure and Editor's automation apply to any short-form content topic, and the product is intended for solo creators generally beyond v1.
+**Note on Broader Applicability:** While this PRD's v1 build and persona are anchored to a single concrete user (the author) for scope discipline and specificity, the underlying capability is not niche-bound — Writer's structure and Editor's automation apply to any short-form content topic, and the product is intended for solo creators generally beyond v1.
 
 ---
 
