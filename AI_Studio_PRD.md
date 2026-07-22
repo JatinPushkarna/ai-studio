@@ -116,6 +116,33 @@ Example (60s video):
 
 The 15% post-production reserve holds room for transitions, B-roll cutaways, SFX gaps, and future animation timing without pre-defining exactly how it's spent — that allocation is the Editor's responsibility, not Script Engine's.
 
+### Word Count ↔ Duration Conversion
+
+`AVG_SPEAKING_WPM` is used in **two directions**, not one — a generation-time direction (guidance, going in) and a measurement-time direction (fact, coming out). Both run off the same single constant so there's only one number to ever change:
+
+```
+AVG_SPEAKING_WPM = 150   # 2.5 words/sec
+```
+
+**1. Post-generation (measurement — authoritative).** Beat and script `duration_seconds` (Outputs above, Structuring Step, Response Schema) are always measured from the actual word count of the text that came back — never planned upfront, never self-reported by the LLM:
+
+```
+duration_seconds = word_count / (AVG_SPEAKING_WPM / 60)
+```
+
+This is the number checked against the Duration Budget Formula's `acceptable_range` above, and what drives the retry/terminal-fallback behavior (Error Handling & Retry Policy below).
+
+**2. Pre-generation (guidance — non-authoritative).** Before calling the LLM, `target_duration_seconds` is converted into an approximate target *word count*, by inverting the same constant, and given to the model as a rough length target so it's more likely to land in range on the first attempt (fewer retries):
+
+```
+spoken_target = target_duration_seconds - (target_duration_seconds x 0.15)   # Duration Budget Formula above
+approx_target_word_count = spoken_target x (AVG_SPEAKING_WPM / 60)
+```
+
+This number is only ever a prompt hint — it is not written to any schema field, and it never substitutes for direction 1. Actual `duration_seconds` is always (re-)measured from the real word count of whatever the LLM actually returns, regardless of how close its output lands to this hint.
+
+Both call sites (Script Engine's generation prompt and duration check, and the Structuring Step's `duration_seconds` calc) reference this one constant, so it only lives in one place. No calibration in v1 — `AVG_SPEAKING_WPM` is a fixed, hardcoded 150 for every creator, every script, no exceptions.
+
 ### JSON Schema — Request
 
 ```json
@@ -194,7 +221,7 @@ The user can always export/proceed despite advisories — zero blocking friction
 ```json
 {
   "script": {
-    "script_id": "string (assigned at export, not at generation - see below)",
+    "script_id": "string | null (null for the entire pre-export lifetime — through generation and every chat refinement turn; assigned only at export, see below)",
     "origin": "enum: generated | user_provided",
     "target_duration_seconds": "integer",
     "total_duration_seconds": "integer",
@@ -215,7 +242,7 @@ The user can always export/proceed despite advisories — zero blocking friction
 }
 ```
 
-`script_id` is minted at export, not at generation or structuring — export is the single event that makes a script trackable, regardless of whether it originated from generation or the Structuring Step, and regardless of how much chat refinement happened in between. `origin` is retained for traceability but does not affect downstream handling — Video Analyzer and Editor consume the same canonical schema either way.
+`script_id` is `null` until export — this holds throughout generation and throughout every turn of chat refinement, regardless of how many turns occur. It is minted at export, not at generation or structuring — export is the single event that makes a script trackable, and the only point at which the record is actually stored. Nothing is persisted under a real ID before that. `origin` is retained for traceability but does not affect downstream handling — Video Analyzer and Editor consume the same canonical schema either way.
 
 **Export is terminal.** An exported `script_id` is never mutated in place. If the user wants to fix a flawed script — one that carries advisories, or one they simply want to improve — they keep working in chat refinement and export again, which mints a **new** `script_id`. There's no in-place editing of an already-exported record; each export is its own immutable, distinct script.
 
@@ -290,9 +317,30 @@ A single retrieval against the vector store returns the 5–7 most relevant past
 
 This directly mitigates the risk of the system staying anchored to a user's early, unrefined work — generation only ever draws on scripts that were clean at export, reading each one's feedback alongside its content rather than risking reinforcement of something already known to be flawed.
 
-### Temperature
+### Creativity Control
 
-Medium (~0.5–0.7 on Claude's 0–1 scale), to be calibrated during implementation. Rationale: Script Engine needs genuine creativity (hook phrasing, voice, framing) while reliably respecting hard constraints (JSON schema, beat structure, duration budget) — medium temperature is the balance point between creative freedom and constraint adherence.
+**Superseded:** the original design called for temperature ~0.5–0.7 as the
+creativity/constraint balance point. Current-generation flagship models (Claude Sonnet 5,
+Opus 4.8, Fable 5) reject non-default `temperature`, `top_p`, and `top_k` values with a
+400 error — sampling-parameter tuning is not available on this model tier. Confirmed
+against official Anthropic documentation.
+
+**v1 approach (two-stage):**
+
+1. **Default first.** Run generation with no sampling parameters set (model default).
+   Adaptive thinking on these models may already produce sufficient natural variation in
+   hook phrasing, voice, and framing across generations without any explicit lever. Test
+   against real topics before assuming a gap exists.
+2. **Prompt-based fallback, only if testing shows a problem.** If default-parameter output
+   reads as repetitive or formulaic across test generations (e.g. same opening pattern,
+   same structural rhythm), add explicit system-prompt instructions governing variation —
+   e.g. guidance to vary sentence structure and phrasing across generations, avoid
+   repeating prior openings, while staying within the creator's established `style_tone`.
+   This becomes the replacement lever for what temperature used to control.
+
+Rationale for sequencing: building a prompt-based creativity system preemptively, before
+confirming the default behavior is actually insufficient, risks solving a problem that
+doesn't exist and adding untested prompt complexity. Test first, add control only if needed.
 
 ### No-Hallucination Constraint
 
