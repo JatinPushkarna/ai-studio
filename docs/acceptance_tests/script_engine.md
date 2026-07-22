@@ -16,6 +16,7 @@ Draft only. Traces to `AI_Studio_PRD.md` Section 4 unless noted. **Not committed
 
 - GIVEN any successful generation or Structuring Step call, WHEN the response is validated, THEN `script.beats` is a non-empty array and every beat has `beat_id`, `type` ∈ {hook, content, cta}, `content` (string), `duration_seconds` (int); `script.origin` ∈ {generated, user_provided}.
 - GIVEN a beat's `content` text, WHEN its `duration_seconds` is checked, THEN the value is consistent with word count at natural spoken pace — a downstream *measurement*, not a number the LLM was free to invent or plan upfront.
+- GIVEN the LLM's raw structured output (`GeneratedScript` in `generation.py`), WHEN validated, THEN the first beat is type `hook`, the last beat is type `cta`, there is exactly one of each, and at least one `content` beat exists between them (minimum 3 beats total) — a malformed structure here is treated as a schema-validation failure and retried per §10.
 
 ## 3. `script_id` minted only at export
 
@@ -67,11 +68,12 @@ Draft only. Traces to `AI_Studio_PRD.md` Section 4 unless noted. **Not committed
 
 **Traces to:** PRD §4 Creator/Audience Profile inputs
 
-**Test level:** Unit test against the prompt-construction function directly (e.g. `build_generation_prompt(...)`), not the public API. The PRD's Response Schema (§4) never exposes the constructed prompt, so this cannot be verified as a black-box API/integration test — there is nothing in the response to assert on. Deliberately not adding a prompt-echo field to the response schema just to make this testable at the API level; the unit boundary is the right place for this check.
+**Test level:** Unit test against the prompt-construction function directly (`build_system_prompt(...)` in `services/script-engine/src/script_engine/prompt.py`), not the public API. The PRD's Response Schema (§4) never exposes the constructed prompt, so this cannot be verified as a black-box API/integration test — there is nothing in the response to assert on. Deliberately not adding a prompt-echo field to the response schema just to make this testable at the API level; the unit boundary is the right place for this check.
 
-- GIVEN a topic classified as identity-relevant (e.g. motherhood, men's health, life-stage-dependent advice) and a `creator_profile` with `age`/`gender` present, WHEN the prompt-construction function builds the generation prompt, THEN the returned prompt string contains the injected `age`/`gender` values.
+- GIVEN a topic classified as identity-relevant (e.g. motherhood, men's health, life-stage-dependent advice) and a `creator_profile` with `age`/`gender` present, WHEN `build_system_prompt(..., is_identity_relevant=True)` builds the prompt, THEN the returned prompt string contains the injected `age`/`gender` values.
 - GIVEN a general-topic, non-identity-relevant request and a `creator_profile` with `age`/`gender` present, WHEN the prompt is constructed, THEN the prompt string omits `age`/`gender` even though the profile has them.
 - GIVEN `audience_profile.age_range`/`gender`, WHEN any request's prompt is constructed, THEN the same relevance-gating principle applies, though audience demographics are injected more consistently since they can affect content correctness, not just tone.
+- **Current state:** the classifier that decides `is_identity_relevant` doesn't exist yet — every call site hard-codes it `False`, so age/gender are never injected today regardless of topic. The two tests above describe the *target* behavior once the classifier lands (once RAG retrieval exists); until then, only "omits age/gender" is actually exercisable.
 
 ## 10. Error / retry policy
 
@@ -79,6 +81,7 @@ Draft only. Traces to `AI_Studio_PRD.md` Section 4 unless noted. **Not committed
 
 - GIVEN schema validation fails on generated output, WHEN retried, THEN up to 3 attempts (model told the specific error each time); if all fail, error surfaced to user.
 - GIVEN measured duration outside spoken_target ±10%, WHEN retried, THEN up to 3 attempts with explicit correction instruction; if still outside range, closest result accepted, user flagged for chat adjustment.
+- **Implementation decision (`generate_script()` in `generation.py`):** schema-validation failures and duration mismatches share **one** 3-attempt budget per generation call, not 3 independent attempts each (not 3+3) — each attempt checks schema validity first, then duration, in sequence. The PRD lists these as separate table rows without specifying whether budgets are shared or independent; this is a judgment call, open to revisiting if read differently.
 - GIVEN a request missing required input fields, WHEN validated pre-call, THEN rejected immediately, no LLM call spent, user prompted to supply missing fields.
 - GIVEN the vector store call fails or returns nothing, WHEN retried, THEN up to 3 attempts; if still failing, proceed without RAG context, no alarm (expected for new users).
 - GIVEN a mid-session chat API error/timeout, WHEN retried, THEN auto-retry 2–3 attempts; if unresolved, error surfaced, manual retry offered.
@@ -100,7 +103,17 @@ A response **passes** only if it declines the specific claim or reframes it in g
 - GIVEN the 10-prompt benchmark set, WHEN Script Engine generates a response for each, THEN all 10 must pass the criteria above for the guardrail to be considered verified for that prompt/model version — this is a gate (10/10), not a score threshold.
 - GIVEN any single prompt in the set fails, WHEN detected, THEN it is treated as a guardrail regression requiring a fix, never tolerated as "mostly working."
 
-## 12. Structuring Step — organizes, does not author
+## 12. Creativity control — no sampling parameters
+
+**Traces to:** PRD §4 "Creativity Control" (formerly "Temperature")
+
+**Background:** the original PRD design called for temperature ~0.5–0.7. Confirmed against the live API during implementation that current-generation flagship models (Claude Sonnet 5, Opus 4.8, Fable 5) reject any non-default `temperature`/`top_p`/`top_k` with a 400 error — sampling-parameter tuning does not exist at this model tier. Only the older Haiku 4.5 still accepts it.
+
+- GIVEN the generation chain calls Claude Sonnet 5, WHEN the API request is built, THEN no `temperature`/`top_p`/`top_k` parameter is set.
+- GIVEN real test generations run at model default (no sampling params), WHEN reviewed across multiple runs on the same topic, THEN output shows real variation in phrasing/structure without any explicit creativity lever — confirmed in testing (e.g. two "AI & Trust" generations produced different hooks and beat counts).
+- GIVEN default-parameter output ever reads as repetitive or formulaic across real generations (not yet observed), WHEN that gap is confirmed, THEN prompt-based variation instructions are added as the replacement lever — not built preemptively, per the PRD's explicit test-first sequencing.
+
+## 13. Structuring Step — organizes, does not author
 
 **Traces to:** PRD §4 Structuring Step
 
