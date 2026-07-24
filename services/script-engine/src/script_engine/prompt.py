@@ -4,7 +4,7 @@ Outputs / Temperature / No-Hallucination Constraint.
 
 from ai_studio_schemas import AudienceProfile, CreatorProfile
 
-from script_engine.duration import duration_budget, seconds_to_approx_words
+from script_engine.duration import beat_pacing, duration_budget
 
 # PRD line ~311, No-Hallucination Constraint.
 NO_HALLUCINATION_GUARDRAIL = (
@@ -25,7 +25,7 @@ def build_system_prompt(
     exists here so that logic has somewhere to plug into once it exists.
     """
     budget = duration_budget(target_duration_seconds)
-    approx_words = seconds_to_approx_words(budget.spoken_target)
+    pacing = beat_pacing(target_duration_seconds)
 
     lines = [
         "You are Script Engine, the generation engine behind a short-form "
@@ -62,9 +62,22 @@ def build_system_prompt(
 
     lines += [
         "",
-        f"Aim for approximately {approx_words} words total across all beats "
-        "-- this is a rough length guide to help you land close on the "
-        "first try, not a strict requirement you need to hit exactly.",
+        f"This script will be read aloud in a {target_duration_seconds}-second "
+        f"video (spoken content should land within approximately "
+        f"{budget.low:.0f}-{budget.high:.0f} seconds after a post-production "
+        "reserve). People decide whether to keep watching in the first few "
+        "seconds, so pace the beats accordingly -- as a length guide, not a "
+        "strict requirement:",
+        f"  - hook: ~{pacing.hook_seconds:.0f}s (~{pacing.hook_words} words) "
+        "-- a single sharp line, not a windup. This is the entire scroll-stopping "
+        "window; don't spend it on preamble.",
+        f"  - content beat(s): ~{pacing.content_seconds:.0f}s "
+        f"(~{pacing.content_words} words) combined -- the substance goes here.",
+        f"  - cta: ~{pacing.cta_seconds:.0f}s (~{pacing.cta_words} words) -- "
+        "one clear ask, not a longer sign-off just because the video is longer.",
+        "This is guidance, not a strict requirement: actual duration is "
+        "measured from your real word count after generation, and you may be "
+        "asked to retry with a correction if it's off.",
         "",
         NO_HALLUCINATION_GUARDRAIL,
     ]
