@@ -4,6 +4,7 @@ Error Handling & Retry Policy.
 
 from __future__ import annotations
 
+import json
 import logging
 from dataclasses import dataclass
 from pathlib import Path
@@ -72,7 +73,37 @@ class GeneratedScript(BaseModel):
 
 def _build_chain():
     llm = ChatAnthropic(model=MODEL_NAME)
-    return llm.with_structured_output(GeneratedScript)
+    # include_raw=True: lets us inspect the raw tool call and attempt a
+    # mechanical repair (see _repair_double_encoded_beats) instead of
+    # immediately burning a retry attempt on a recognizable, fixable quirk.
+    return llm.with_structured_output(GeneratedScript, include_raw=True)
+
+
+def _repair_double_encoded_beats(raw_message) -> GeneratedScript | None:
+    """Observed model quirk (real API testing, dense/long topics): instead of
+    returning the tool argument {"beats": [...]} directly, the model
+    occasionally re-encodes the whole object as a JSON string one level too
+    deep -- {"beats": "{\\"beats\\": [...]}"}. Pydantic correctly rejects a
+    string where a list is expected. This is a recognizable, mechanical
+    double-encoding, not a content problem, so it's repaired here rather than
+    spent as a retry attempt (schema and duration failures share one 3-attempt
+    budget -- see generate_script docstring -- so silently eating an attempt
+    on this would starve legitimate duration-correction retries).
+    """
+    tool_calls = getattr(raw_message, "tool_calls", None)
+    if not tool_calls:
+        return None
+    beats_value = tool_calls[0].get("args", {}).get("beats")
+    if not isinstance(beats_value, str):
+        return None
+    try:
+        inner = json.loads(beats_value)
+    except (json.JSONDecodeError, TypeError):
+        return None
+    try:
+        return GeneratedScript.model_validate(inner)
+    except Exception:  # noqa: BLE001 -- repair is best-effort, fall through to normal retry
+        return None
 
 
 def assemble_script(generated: GeneratedScript, target_duration_seconds: int) -> Script:
@@ -140,17 +171,35 @@ def generate_script(request: GenerationRequest) -> GenerationResponse:
 
     for attempt in range(1, MAX_ATTEMPTS + 1):
         try:
-            generated: GeneratedScript = chain.invoke(messages)
-        except Exception as exc:  # noqa: BLE001 -- structured-output parsing
-            # failures surface as different exception types depending on the
-            # model/parser version; treat any of them as "retry with the error".
+            result = chain.invoke(messages)
+        except Exception as exc:  # noqa: BLE001 -- genuine API-level failures
+            # (network, rate limit, auth) -- distinct from schema/parsing
+            # issues, which include_raw=True now surfaces without raising.
             last_schema_error = str(exc)
-            logger.warning("Attempt %d: schema validation failed: %s", attempt, exc)
+            logger.warning("Attempt %d: API call failed: %s", attempt, exc)
             messages.append(
                 (
                     "human",
-                    f"Your previous output failed schema validation: {exc}. "
-                    "Please retry, correcting this.",
+                    f"Your previous attempt failed: {exc}. Please retry, "
+                    "correcting this.",
+                )
+            )
+            continue
+
+        generated: GeneratedScript | None = result["parsed"]
+        if generated is None:
+            generated = _repair_double_encoded_beats(result["raw"])
+            if generated is not None:
+                logger.info("Attempt %d: repaired double-encoded beats field", attempt)
+
+        if generated is None:
+            last_schema_error = str(result["parsing_error"])
+            logger.warning("Attempt %d: schema validation failed: %s", attempt, last_schema_error)
+            messages.append(
+                (
+                    "human",
+                    f"Your previous output failed schema validation: "
+                    f"{last_schema_error}. Please retry, correcting this.",
                 )
             )
             continue
