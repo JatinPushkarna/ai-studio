@@ -10,6 +10,7 @@ __pycache__/
 # Env
 .env
 .env.*
+!.env.example
 
 # Node / Remotion
 node_modules/
@@ -23,3 +24,6 @@ Thumbs.db
 
 # Local tooling config (per-developer, not shared)
 .claude/
+
+# Local dev scripts (not shared)
+scripts/
