@@ -1,7 +1,7 @@
 [project]
 name = "ai-studio-schemas"
 version = "0.0.1"
-description = "Canonical Pydantic models shared across Script Engine, Video Analyzer, and Post-Processing Engine. No model code yet - Week 5 Day 1 scaffold only."
+description = "Canonical Pydantic models shared across Script Engine, Video Analyzer, and Post-Processing Engine."
 requires-python = ">=3.12"
 dependencies = [
     "pydantic==2.10.4",

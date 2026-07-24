@@ -15,7 +15,8 @@ class CreatorProfile(BaseModel):
     platforms: list[str] = Field(default_factory=list)
     style_tone: str
     # Optional: only injected into the generation prompt when the topic is
-    # classified as identity-relevant (relevance-gate logic is Week 5 Day 3).
+    # classified as identity-relevant (relevance-gate logic depends on RAG
+    # retrieval, not yet built).
     age: int | None = None
     gender: str | None = None
 
